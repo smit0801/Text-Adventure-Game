@@ -1,0 +1,20 @@
+[
+    {
+        "name": "Living Room",
+        "desc": "A cozy space with a fireplace and comfortable sofas",
+        "exits": {"north": 1, "east": 2},
+        "items": ["remote control", "magazine", "throw blanket", "coffee table"]
+    },
+    {
+        "name": "Bedroom",
+        "desc": "A serene room with a large bed and soft lighting",
+        "exits": {"south": 0, "west": 2},
+        "items": ["pillow", "lamp", "alarm clock", "nightstand"]
+    },
+    {
+        "name": "Kitchen",
+        "desc": "A bright kitchen with modern appliances and a dining area",
+        "exits": {"west": 0, "north": 1},
+        "items": ["knife set", "cutting board", "mixing bowls", "cookbook"]
+    }
+]
