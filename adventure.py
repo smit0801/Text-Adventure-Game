@@ -3,7 +3,7 @@ import json
 player_location = 0
 player_inventory = []
 
-with open('loop.map') as f:
+with open('map filename') as f:
     json_str = f.read()
 
 map_data = json.loads(json_str)
