@@ -5,7 +5,7 @@ player_location = 0
 player_inventory = []
 
 # Load the map data from the JSON 
-with open('map_filename') as f:   # Opens the file containng map data
+with open('loop.map') as f:   # Opens the file containng map data
     json_str = f.read()       # Reads the content of  file
 
 # Parse the JSON data as an array
