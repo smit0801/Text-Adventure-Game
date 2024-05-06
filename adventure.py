@@ -1,15 +1,23 @@
 import json
+import sys
 
-# Define the player's starting location and inventory
-player_location = "start"
-player_inventory = []
+# Check if the filename is provided as an argument
+if len(sys.argv)!= 2:
+    print("Usage: python adventure.py <map_filename>")
+    sys.exit(1)
+
+map_filename = sys.argv[1]
 
 # Load the map data from the JSON
-with open('map_filename.json') as f:   # Opens the file containing map data
+with open(map_filename) as f:   # Opens the file containing map data
     json_str = f.read()       # Reads the content of the file
 
 # Parse the JSON data as a dictionary
 map_data = json.loads(json_str)   # Converting JSON string to a Python dictionary
+
+# Define the player's starting location and inventory
+player_location = "start"
+player_inventory = []
 
 # Helper function to look up a room by name
 def get_room(room_name):
@@ -96,64 +104,59 @@ while True:
             required_item = next_room.get("required_item")
             restricted_item = next_room.get("restricted_item")
             if required_item and required_item not in player_inventory:
-                print("You need the " + required_item + " to unlock the next stage.")
+                print("You need the " + required_item + " to go there.")
             elif restricted_item and restricted_item in player_inventory:
-                print("You need to drop " + restricted_item + " to go to the next stage.")
+                print("You can't go that way with the " + restricted_item + ".")
             else:
                 player_location = next_room_name
                 current_room = next_room
-                print_room(current_room)
-
-                # Check if the player has reached the last room
-                if player_location == map_data["end"]:
-                    print("Congratulations, you've reached the end of the game!")
-                    break
-
+                print("> " + current_room["name"])
+                print(current_room["desc"])
+                if current_room.get("exits") and len(current_room["exits"]) > 0:
+                    print("Exits: " + ", ".join(current_room["exits"].keys()))
+                if current_room.get("items") and len(current_room["items"]) > 0:
+                    print("Items: " + ", ".join(current_room["items"]))
         else:
-            print(f"There's no way to go {direction_abbrev}.")
+            print("You can't go that way.")
+
+    # Handle the "get" verb
+    elif verb == "get":
+        item_abbrev = " ".join(args)
+        item = get_item(item_abbrev, current_room["items"])
+        if item:
+            player_inventory.append(item)
+            current_room["items"].remove(item)
+            print("You got the " + item + ".")
+        else:
+            print("You don't see that item here.")
+
+    # Handle the "drop" verb
+    elif verb == "drop":
+        item_abbrev = " ".join(args)
+        item = get_item(item_abbrev, player_inventory)
+        if item:
+            player_inventory.remove(item)
+            current_room["items"].append(item)
+            print("You dropped the " + item + ".")
+        else:
+            print("You don't have that item.")
+
+    # Handle the "drop_all" verb
+    elif verb == "drop_all":
+        player_inventory.clear()
+        current_room["items"].extend(["all of your items"])
+        print("You dropped all your items.")
 
     # Handle the "look" verb
     elif verb == "look":
         print_room(current_room)
 
-    # Handle the "get" verb
-    elif verb == "get":
-        item_abbrev = " ".join(args)
-        item_name = get_item(item_abbrev, current_room.get("items", []))
-        if item_name:
-            player_inventory.append(item_name)
-            current_room["items"].remove(item_name)
-            print(f"You get the {item_name}.")
-        else:
-            print(f"There's no item starting with '{item_abbrev}' here.")
-
-    # Handle the "drop" verb
-    elif verb == "drop":
-        item_abbrev = " ".join(args)
-        item_name = get_item(item_abbrev, player_inventory)
-        if item_name:
-            player_inventory.remove(item_name)
-            current_room["items"].append(item_name)
-            print(f"You drop the {item_name}.")
-        else:
-            print(f"You're not carrying an item starting with '{item_abbrev}'.")
-
-    # Handle the "drop all" verb
-    elif verb == "drop_all":
-        if len(player_inventory) == 0:
-            print("You're not carrying anything to drop.")
-        else:
-            for item_name in player_inventory:
-                current_room["items"].append(item_name)
-            player_inventory = []
-            print("You drop all of your items.")
-
     # Handle the "inventory" verb
     elif verb == "inventory":
-        if not player_inventory:
-            print("You're not carrying anything.")
+        if player_inventory:
+            print("You are carrying: " + ", ".join(player_inventory))
         else:
-            print("You're carrying: " + ", ".join(player_inventory))
+            print("You are not carrying anything.")
 
     # Handle the "help" verb
     elif verb == "help":
@@ -161,11 +164,11 @@ while True:
 
     # Handle the "quit" verb
     elif verb == "quit":
-        print("Thanks for playing!")
+        print("Goodbye!")
         break
 
-    # Handle unknown verbs
+    # Handle invalid verbs
     else:
-        print("I don't know how to " + verb + ".")
+        print("Sorry, I didn't understand that command.")
 
 
