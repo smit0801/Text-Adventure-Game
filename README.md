@@ -7,7 +7,7 @@ Made By
 Name: Smit Mhatre
 CWID: 20027642
 Stevens Login: smhatre@stevens.edu
-GitHub Repo URL: URL of your public GitHub repo
+GitHub Repo URL: https://github.com/smit0801/Text-Adventure-Game
 Estimated Time Spent: Time spent 7 hours of actual programming(much more on youtube figuring how to make it)
 
 Code Testing
