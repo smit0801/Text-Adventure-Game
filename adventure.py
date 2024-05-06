@@ -1,146 +1,166 @@
-
 import json
-import sys
 
-class Game:
-    def __init__(self, map_filename):
-        self.load_map(map_filename)
-        self.current_room_id = 0
-        self.inventory = []
+# Define the player's starting location and inventory
+player_location = 0
+player_inventory = []
 
-    def load_map(self, map_filename):
-        with open(map_filename, 'r') as file:
-            self.map_data = json.load(file)
-            self.validate_map()
+# Load the map data from the JSON 
+with open('loop.map') as f:   # Opens the file containng map data
+    json_str = f.read()       # Reads the content of  file
 
-    def validate_map(self):
-        if not isinstance(self.map_data, list):
-            raise ValueError("Invalid map format. Map should be a list of room objects.")
+# Parse the JSON data as an array
+map_data = json.loads(json_str)   # Converting  JSON string to a Python list
 
-        for room_id, room in enumerate(self.map_data):
-            if not all(field in room for field in ['name', 'desc', 'exits']):
-                raise ValueError(f"Invalid room format for room {room_id}. Missing required fields.")
+# Helper function to look up a room index
+def get_room(room_index):
+    return map_data[room_index]
 
-            if not isinstance(room['exits'], dict):
-                raise ValueError(f"Invalid exits format for room {room_id}. Exits should be a dictionary.")
+# Helper function to print environment discription
+def print_room(room):
+    print("> " + room["name"])
+    print(room["desc"])
+    if room.get("exits") and len(room["exits"]) > 0:
+        print("Exits: " + ", ".join(room["exits"].keys()))
+    if room.get("items") and len(room["items"]) > 0:
+        print("Items: " + ", ".join(room["items"]))
 
-            for exit_direction, exit_room_id in room['exits'].items():
-                if not isinstance(exit_room_id, int) or exit_room_id < 0 or exit_room_id >= len(self.map_data):
-                    raise ValueError(f"Invalid room ID '{exit_room_id}' in exit '{exit_direction}' for room {room_id}.")
-
-    def display_room(self):
-        room = self.map_data[self.current_room_id]
-        
-        print(f"> {room['name']}\n\n{room['desc']}\n")
-        
-        if 'items' in room and room['items']:
-            items = ', '.join(room['items'])
-            print(f"Items: {items}\n")
-        
-        exits = ', '.join(room['exits'])
-        print(f"Exits: {exits}\n")
-
-    def process_go(self, direction):
-        room = self.map_data[self.current_room_id]
-        valid_directions = room['exits'].keys()
-
-        if not direction:
-            print("Sorry, you need to 'go' somewhere.")
-            return
-
-        if direction in valid_directions:
-            self.current_room_id = room['exits'][direction]
-            print(f"You go {direction}.\n")
-            
-            self.display_room()
+# Helper function to print the list of valid verbs
+def print_valid_verbs():
+    valid_verbs = ["go", "get", "drop", "drop_all", "look", "inventory", "quit", "help"]
+    print("You can run the following commands:")
+    for verb in valid_verbs:
+        if verb == "get":
+            print(" get <item>")
+        elif verb == "drop":
+            print(" drop <item>")
+        elif verb == "go":
+            print(" go <direction>")
         else:
-            print(f"There's no way to go {direction}.")
+            print(" " + verb)
 
-    def process_look(self):
-        self.display_room()
+# Helper function for Abbreviations
+def get_verb(verb_abbrev):
+    verb_dict = {
+        'g': 'go',
+        'ge': 'get',
+        'dr': 'drop',
+        'i': 'inventory',
+        'h': 'help',
+        'q': 'quit'
+    }
+    return verb_dict.get(verb_abbrev, verb_abbrev)
 
-    
-    def process_get(self, item):
-        room = self.map_data[self.current_room_id]
+# Helper function to handle direction abbreviations
+def get_direction(direction_abbrev, exits):
+    for full_dir, _ in exits.items():
+        if full_dir.startswith(direction_abbrev):
+            return full_dir
+    return None
 
-        if not item:
-            print("Sorry, you need to 'get' something.")
-            return
+# Helper function to handle item abbreviations
+def get_item(item_abbrev, items):
+    for item in items:
+        if item.startswith(item_abbrev):
+            return item
+    return None
 
-        matching_items = [map_item for map_item in room.get('items', []) if map_item.startswith(item)]
-        if len(matching_items) == 1:
-            self.inventory.append(matching_items[0])
-            room['items'].remove(matching_items[0])
-            print(f"You pick up the {matching_items[0]}.")
-        elif len(matching_items) > 1:
-            print(f"Did you want to get {', '.join(matching_items)}?")
+# Initialize current_room outside of the loop
+current_room = get_room(player_location)
+
+# Game loop
+while True:
+    # Read player input and split it into words
+    command = input("What would you like to do? ").strip().lower().split()
+
+    # Handle empty input
+    if not command:
+        continue
+
+    # Parse the verb and additional arguments
+    verb_abbrev = command[0]
+    verb = get_verb(verb_abbrev)
+    args = command[1:]
+
+    # Handle the "go" verb
+    if verb == "go":
+        direction_abbrev = " ".join(args)
+        direction = get_direction(direction_abbrev, current_room["exits"])
+        if direction:
+            next_room_index = current_room["exits"][direction]
+            next_room = get_room(next_room_index)
+
+            # Check if the room requires an item and if the player has it
+            required_item = next_room.get("required_item")
+            restricted_item = next_room.get("restricted_item")
+            if required_item and required_item not in player_inventory:
+                print("You need the " + required_item + " to unlock next stage.")
+            elif restricted_item and restricted_item in player_inventory:
+                print("You need to drop " + restricted_item + " to go to next stage.")
+            else:
+                player_location = next_room_index
+                current_room = next_room
+                print_room(current_room)
+
+                # Check if the player has reached the last room
+                if player_location == len(map_data) - 1:
+                    print("Congratulations, you've reached the end of the game!")
+                    break
+
         else:
-            print(f"There's no {item} anywhere.")
+            print(f"There's no way to go {direction_abbrev}.")
 
+    # Handle the "look" verb
+    elif verb == "look":
+        print_room(current_room)
 
-    def process_drop(self, item):
-        if item in self.inventory:
-            room = self.map_data[self.current_room_id]
-            self.inventory.remove(item)
-            room.setdefault('items', []).append(item)
-            print(f"You drop the {item}.")
+    # Handle the "get" verb
+    elif verb == "get":
+        item_abbrev = " ".join(args)
+        item_name = get_item(item_abbrev, current_room.get("items", []))
+        if item_name:
+            player_inventory.append(item_name)
+            current_room["items"].remove(item_name)
+            print(f"You get the {item_name}.")
         else:
-            print(f"You don't have {item} in your inventory.")
+            print(f"There's no item starting with '{item_abbrev}' here.")
 
-    def process_inventory(self):
-        if not self.inventory:
+    # Handle the "drop" verb
+    elif verb == "drop":
+        item_abbrev = " ".join(args)
+        item_name = get_item(item_abbrev, player_inventory)
+        if item_name:
+            player_inventory.remove(item_name)
+            current_room["items"].append(item_name)
+            print(f"You drop the {item_name}.")
+        else:
+            print(f"You're not carrying an item starting with '{item_abbrev}'.")
+
+    # Handle the "drop all" verb
+    elif verb == "drop_all":
+        if len(player_inventory) == 0:
+            print("You're not carrying anything to drop.")
+        else:
+            for item_name in player_inventory:
+                current_room["items"].append(item_name)
+            player_inventory = []
+            print("You drop all of your items.")
+
+    # Handle the "inventory" verb
+    elif verb == "inventory":
+        if not player_inventory:
             print("You're not carrying anything.")
         else:
-            print("Inventory:")
-            for item in self.inventory:
-                print(f"  {item}")
+            print("You're carrying: " + ", ".join(player_inventory))
 
-    def process_quit(self):
-        print("Goodbye!")
-        sys.exit()
+    # Handle the "help" verb
+    elif verb == "help":
+        print_valid_verbs()
 
-    def process_help(self):
-        print("You can run the following commands:")
-        command_formats = {
-            'go': "go ...",
-            'get': "get ...",
-            
-        }
-        for method_name in dir(self):
-            if method_name.startswith("process_"):
-                command = method_name[len("process_"):].lower()
-                format_str = command_formats.get(command, command)
-                print(f"  {format_str}")
+    # Handle the "quit" verb
+    elif verb == "quit":
+        print("Thanks for playing!")
+        break
 
-    def play(self):
-        self.display_room()
-        while True:
-            user_input = input("What would you like to do? ").strip().lower()
-            if user_input.startswith('go'):
-                direction = user_input[3:]
-                self.process_go(direction)
-            elif user_input in self.map_data[self.current_room_id]['exits']:
-                self.process_go(user_input)
-            elif user_input == 'look':
-                self.process_look()
-            elif user_input.startswith('get'):
-                item = user_input[4:]
-                self.process_get(item)
-            elif user_input.startswith('drop '):
-                item = user_input[5:]
-                self.process_drop(item)
-            elif user_input == 'inventory':
-                self.process_inventory()
-            elif user_input == 'quit':
-                self.process_quit()
-            elif user_input == 'help':
-                self.process_help()
-            else:
-                print("Use 'quit' to exit.")
-
-if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        print("Usage: python3 adventure.py [map filename]")
+    # Handle unknown verbs
     else:
-        game = Game(sys.argv[1])
-        game.play()
+        print("I don't know how to " + verb + ".")
