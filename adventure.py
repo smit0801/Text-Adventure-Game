@@ -1,5 +1,3 @@
-Sunday, May 5, 2024
-4:41 AM
 
 import json
 import sys
